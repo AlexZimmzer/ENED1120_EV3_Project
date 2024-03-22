@@ -103,17 +103,27 @@ def motorAB_reset():
     motorA.reset()
     motorB.reset()
 
+#Handles turning so we don't overshoot and aren't relyying on setting the gyro sensor to stop at a position it isn't actually supposed to stop at.
+def turn_speed(dif):
+    if abs(dif) > 15:
+        steering_drive.on(-100,10)
+    elif abs(dif) < 10:
+        steering_drive.on(-100,5)
+
+
 #turns robot until specified degrees are met. Keep in mind that our robot considers CCW to be negative and CW to be positve. (idk I installed the gyro wrong-lanny)
 #can take positive and negative values. Returns Target, so please make sure the funciton is called in the fashion Target = turn()
 #In the future, we need to check how much distance is added to a turn (i.e. added x distance on a 90 degree turn from positve y.)
 def turn(degrees, Targ):
     degrees = degrees * -1 + Targ
     if degrees < 0:
-        while read_gyro() > degrees+4:
-            steering_drive.on(-100,10)
+        while read_gyro() > degrees:
+            dif = degrees - read_gyro()
+            turn_speed(dif)
     else:
-        while read_gyro() < degrees-4:
-            steering_drive.on(100,10)
+        while read_gyro() < degrees:
+            dif = degrees - read_gyro()
+            turn_speed(dif)
     steering_drive.off
     Targ = degrees
     motorAB_reset()
