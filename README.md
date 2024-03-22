@@ -9,7 +9,7 @@ ENED1120 is the second of two first-year engineering courses at the University o
 - Return to starting position
 - Detect any obstructions and/or obstacles
 ## Movement
-A large part of this robot is its movement - if it cannot go straight, it won't be successful. With that said, simply coding the robot to go straight will not be effective enough to work. While the robot may be instructed to go straight, the path tends to vary significantly, which is why one of the first things developed was a go-straight algorithm. After a failed algorithm attempt and a couple hours of research, we decided to implement a PID system capable of steering the robot for us using accumulated gyro sensor values. The <a href="https://youtu.be/U-LdBQ-vBkg?si=d6cHNZpvp4QEBBvm">equation</a> that we came across was as follows:
+A large part of this robot is its movement - if it cannot go straight, it won't be successful. With that said, simply coding the robot to go straight will not be effective enough to work. While the robot may be instructed to go straight, the path tends to vary significantly, which is why one of the first things developed was a go-straight algorithm. After a failed algorithm attempt and a couple hours of research, we decided to implement a PID system capable of steering the robot for us using accumulated gyro sensor values. The <a href="https://youtu.be/U-LdBQ-vBkg?si=k_LZRqaQVKBJXTsQ&t=172">equation</a> that we came across was as follows:
 <p align="center">
   Steering_Value = K_p * Error + K_i * Integral + K_d * derivative
 </p>
