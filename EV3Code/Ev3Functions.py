@@ -18,6 +18,7 @@ from ev3dev2.button import Button
 from ev3dev2.sound import Sound
 from ev3dev2.led import Leds
 import time
+import random
 
 #constants/variables
 degrees_for_1degree = (4.13) #(4.27)
@@ -30,8 +31,8 @@ motorA = LargeMotor(OUTPUT_A)
 motorB = LargeMotor(OUTPUT_B)
 motorC = MediumMotor(OUTPUT_C)
 color_sensor = ColorSensor(INPUT_2)
-touch_sensor = TouchSensor(INPUT_3)
 gyro_sensor = GyroSensor(INPUT_4)
+ultrasonic_sensor = UltrasonicSensor(INPUT_3)
 added_turn_degrees = 38.481
 
 #PID Controls
@@ -51,14 +52,18 @@ PID_settings = [steeringvalue, Target, Error, kp, ki, Integral, kd, Derivative, 
 # List indexs       0           1       2       3   4   5       6   7           8
 
 #Starting location will be adjusted to proper location, but for testing purposes (0,0) is start position.
-location = [0,0]
+location = [6,-6]
+
 #Barcode information. Assume 0 is white and 1 is black.
-barcode_1 = [0,0,0,1]
-barcode_2 = [0,1,0,1]
-barcode_3 = [0,0,1,1]
+barcode_1 = [1,0,0,0]
+barcode_2 = [1,0,1,0]
+barcode_3 = [1,1,0,0]
 barcode_4 = [1,0,0,1]
 barcode_all_list = [barcode_1,barcode_2,barcode_3,barcode_4]
 barcode_cur_list = [0,0,0,0]
+
+
+
 
 #This function can be called to read gyro on input_4. It's easier to type read_gyro() so I like it.
 def read_gyro():
@@ -103,14 +108,6 @@ def motorAB_reset():
     motorA.reset()
     motorB.reset()
 
-#Handles turning so we don't overshoot and aren't relyying on setting the gyro sensor to stop at a position it isn't actually supposed to stop at.
-def turn_speed(dif):
-    if abs(dif) > 15:
-        steering_drive.on(-100,10)
-    elif abs(dif) < 10:
-        steering_drive.on(-100,5)
-
-
 #turns robot until specified degrees are met. Keep in mind that our robot considers CCW to be negative and CW to be positve. (idk I installed the gyro wrong-lanny)
 #can take positive and negative values. Returns Target, so please make sure the funciton is called in the fashion Target = turn()
 #In the future, we need to check how much distance is added to a turn (i.e. added x distance on a 90 degree turn from positve y.)
@@ -118,13 +115,17 @@ def turn(degrees, Targ):
     degrees = degrees * -1 + Targ
     if degrees < 0:
         while read_gyro() > degrees:
-            dif = degrees - read_gyro()
-            turn_speed(dif)
+            if read_gyro() > degrees + 15:
+                steering_drive.on(-100,10)
+            else:
+                steering_drive.on(-100,4)
     else:
         while read_gyro() < degrees:
-            dif = degrees - read_gyro()
-            turn_speed(dif)
-    steering_drive.off
+            if read_gyro() < degrees - 15:
+                steering_drive.on(100,10)
+            else:
+                steering_drive.on(100,2)
+    steering_drive.off()
     Targ = degrees
     motorAB_reset()
     return Targ
@@ -133,16 +134,103 @@ def turn(degrees, Targ):
 def calibrate_gyro():
     GyroSensor(INPUT_4).calibrate()
 
-#experiemental brain code
-def scanner():
-    for i in range(4):
-        barcode_cur_list[i] = color_sensor.color
-        if barcode_cur_list[i] != 1:
-            barcode_cur_list[i] = 0
-        motorC.on_for_degrees(30,120)
-    for i in range(4):
-        if barcode_cur_list == barcode_all_list[i]:
-            return(barcode_cur_list)
+#PostionTracking
+def ZimCode(shelving_unit, shelving_number, shelving_sub):
+    x_alleys = [24,48,72,96]
+    shelving_targ = [3,9,15,21,27,33]
+    angle_list = [0, 0]
+    distance_list = [0, 0]
+    angle_list[0] = -90
+    if shelving_sub < 7:
+        angle_list[1] = 90
+    else:
+        angle_list[1] = -90
+    if shelving_number == 1:
+        if shelving_sub <= 6:
+            if shelving_unit == 1 or shelving_unit == 2:
+                distance_list[0] = x_alleys[0]-12
+            elif shelving_unit == 3 or shelving_unit == 4:
+                distance_list[0] = x_alleys[2]-12
+        else:
+            if shelving_unit == 1 or shelving_unit == 2:
+                distance_list[0] = x_alleys[0]+12
+            elif shelving_unit == 3 or shelving_unit == 4:
+                distance_list[0] = x_alleys[2]+12
+    else:
+        if shelving_sub <= 6:
+            if shelving_unit == 1 or shelving_unit == 2:
+                distance_list[0] = x_alleys[1]-12
+            elif shelving_unit == 3 or shelving_unit == 4:
+                distance_list[0] = x_alleys[3]-12
+        else:
+            if shelving_unit == 1 or shelving_unit == 2:
+                distance_list[0] = x_alleys[1]+12
+            elif shelving_unit == 3 or shelving_unit == 4:
+                distance_list[0] = x_alleys[3]+12
+    if shelving_unit == 1 or shelving_unit == 3:
+        shelving_sub = shelving_sub % 6
+        if shelving_sub == 0:
+            shelving_sub = 6
+        for i in range(5):
+            if shelving_sub == (i+1):
+                distance_list[1] = shelving_targ[i]+6
+                break
+    elif shelving_unit == 2 or shelving_unit == 3:
+        shelving_sub = shelving_sub % 6
+        if shelving_sub == 0:
+            shelving_sub = 6
+        for i in range(5):
+            if shelving_sub == (i+1):
+                distance_list[1] = shelving_targ[i]+54
+    
+    final = [[distance_list],[angle_list]]
+    
+    return(final)
+    
+#Scanner Code
+# white is 0, black is 1
+# def scanner(Target):
+#     if color_sensor.reflected_light_intensity != 0:
+#         measured_list = [0,0,0,0]
+#         for i in range(4):
+#             prev = location[0]
+#             count = 0
+#             accum = 0
+#             #0.5 represents barcode width
+#             while prev == location[0]:
+#                 accum += color_sensor.reflected_light_intensity
+#                 count += 1
+#                 measured_list[i] = accum/count
+#             if measured_list[i] < 15:
+#                 barcode_cur_list[i] = 1
+#             else:
+#                 barcode_cur_list[i] = 0
+#     best_accuracy = 0
+#     barcode = 0
+#     for i in range(4):
+#         for j in range(4):
+#             cur_accuracy = 0 
+#             if barcode_cur_list[j] == barcode_all_list[i][j]:
+#                 cur_accuracy += 1
+#         if cur_accuracy > best_accuracy:
+#             barcode = i
+#     else:
 
+#     return(barcode_all_list[barcode])
+#Elizabeth was here (lanny will never see this)
+#Moves foward until value is reached. Turns motor a specified amount.
+def box_approach_pickup():
+    while ultrasonic_sensor.distance_centimeters_ping > 3.4:
+        steering_drive.on(0,10)
+        #print(ultrasonic_sensor.distance_centimeters)
+    steering_drive.off()
+    motorC.on_for_degrees(5,-115)
+    # for i in range(4):
+    #     motorC.on_for_degrees(5,-105)
+    #     time.sleep(3)
 ## End Of functions #######################################################################################################################################
-
+calibrate_gyro()
+# box_approach_pickup()
+# motorC.on_for_degrees(5,115)
+# time.sleep(2)
+# box_approach_pickup()

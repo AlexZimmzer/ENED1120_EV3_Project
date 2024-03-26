@@ -17,6 +17,10 @@ from ev3dev2.display import Display
 from ev3dev2.button import Button
 from ev3dev2.sound import Sound
 from ev3dev2.led import Leds
+import time
 from Ev3Functions import *
-
-ZimCode()
+unit = int(input("Please enter shelving unit (A = 1, B = 2, C = 3, D = 4): "))
+number = int(input("Please enter shelving number(1 or 2): "))
+sub = int(input("Please enter shelving subsection(1-12): "))
+movement_list = ZimCode(unit,number,sub)
+print(movement_list)
